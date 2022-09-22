@@ -80,7 +80,7 @@
 
       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
       /** @see https://docs.banuba.com/face-ar-sdk-v1/web/web_known_issues#effect-animations-are-delayed-on-safari for details */
-      //if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
+      if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
 
       ;(async () => {
         let lock = 30;//$("select")[0].value
