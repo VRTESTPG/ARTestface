@@ -1,251 +1,241 @@
+<!DOCTYPE html>
 <html>
+
 <head>
-<title>Three.js and AR.js - examples</title>
-<link rel=stylesheet href="css/index.css"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Banuba SDK Web AR demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.6/dist/semantic.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.6/dist/semantic.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body>
 
-<div class="bigTitle">Three.js and AR.js Examples</div>
-<hr>
-The goal of this collection is to provide a set of basic and instructive examples that introduce the various features in the Javascript-based Augmented Reality (AR) library, 
-<a class="toc" href="https://github.com/jeromeetienne/AR.js">AR.js</a>. Advanced <a class="toc" href="https://threejs.org/">three.js</a> examples are also included.
-<br/><br/>
-Viewing the AR examples will require a device with a camera and one or both of the <a class="toc" href="markers/hiro.png">Hiro</a> and <a class="toc" href="markers/kanji.png">Kanji</a> marker patterns (either printed or displayed on a second device).
-<br/><br/>
-Source code hosted at <a class="toc" href="https://github.com/stemkoski/AR-Examples">GitHub</a>.
+<body class="ui container">
+    <header>
+      <!--<h2>Select an effect:</h2>
+      <label class="ui sub header">
+        FPS lock
+        <select class="ui dropdown">
+          <option value="30" selected>30</option>
+          <option value="60">60</option>
+          <option value="-1">🔥 Unlocked 🔥</option>
+        </select>
+      </label>
+      <button class="ui button" id="reset">Reset</button>
+      <div id="effects"></div>-->
+    </header>
 
-<hr/>
+    <main>
+      <span id="rec" hidden>
+        <i class="circle icon"></i>
+        REC
+      </span>
+      <div id="webar"></div>
+      <div id="source">
+      </div>
+      <!--<button class="ui icon button" id="sound">
+        <i class="volume icon"></i>
+      </button>-->
+      <output></output>
+    </main>
 
-<div class="fancy">
-<a href="hello-cube.html">
-<img src="images/demo/hello-cube.png" class="superImage" />
-<br/>Basic Cube</a>
-<p class ="superText">A basic scene that superimposes a cube on a Hiro marker.
-</p>
-</div>
+    <footer>
+      <button class="ui right labeled icon button" id="screenshot">
+        <i class="file image icon"></i>
+        Screenshot
+      </button>
 
-<div class="fancy">
-<a href="custom-patterns.html">
-<img src="images/demo/custom-patterns.png" class="superImage" />
-<br/>Many Cubes</a>
-<p class ="superText">A scene that superimposes different colored cubes on a Hiro, Kanji, and letter markers.
-</p>
-</div>
+      <div class="ui buttons">
+        <button class="ui right labeled icon button" data-content="Start video recording" id="start">
+          <i class="play icon"></i>
+          Video recording
+        </button>
+        <button class="ui icon button" data-content="Pause video recording" id="pause">
+          <i class="pause icon"></i>
+        </button>
+        <button class="ui icon button" data-content="Resume video recording" id="resume">
+          <i class="step forward icon"></i>
+        </button>
+        <button class="ui icon button" data-content="Stop video recording" id="stop">
+          <i class="stop icon"></i>
+        </button>
+      </div>
+    </footer>
 
-<div class="fancy">
-<a href="smoothed-controls.html">
-<img src="images/demo/hello-cube.png" class="superImage" />
-<br/>Smoothed Controls</a>
-<p class ="superText">The basic scene, recreated using "smoothed controls", which interpolates the marker location from frame to frame at an adjustable rate.
-</p>
-</div>
+    <script src="BanubaClientToken.js"></script>
+    <script type="module">
+      import { Effect, Webcam, Image, Player, Module, VideoRecorder, ImageCapture, Dom } from "https://cdn.jsdelivr.net/npm/@banuba/webar/dist/BanubaSDK.browser.esm.min.js"
+      
+      const effects = [
+        "Ruler",
+        "BackgroundPicture",
+        "BackgroundBeauty",
+        "BigPinkGlasses",
+        "glasses_Banuba",
+        "Hipster3",
+        "Rorschach",
+        "Hair_recoloring"
+      ]
 
-<div class="fancy">
-<a href="texture.html">
-<img src="images/demo/texture.png" class="superImage" />
-<br/>Image Texture</a>
-<p class ="superText">An image is positioned to cover a Hiro marker.
-</p>
-</div>
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+      /** @see https://docs.banuba.com/face-ar-sdk-v1/web/web_known_issues#effect-animations-are-delayed-on-safari for details */
+      if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
 
-<div class="fancy">
-<a href="globe.html">
-<img src="images/demo/globe.png" class="superImage" />
-<br/>Rotating Globe</a>
-<p class ="superText">A rotating globe (illuminated by a point light) is positioned above a Hiro marker.
-</p>
-</div>
+      ;(async () => {
+        let lock = 30;//$("select")[0].value
+        let source
 
-<div class="fancy">
-<a href="video.html">
-<img src="images/demo/video.png" class="superImage" />
-<br/>Video Texture</a>
-<p class ="superText">A flat plane, with a video for a texture, is positioned to cover a Hiro marker.
-</p>
-</div>
+        const [player, modules] = await Promise.all([
+          Player.create({
+            clientToken: window.BANUBA_CLIENT_TOKEN,
+            proxyVideoRequestsTo: isSafari ? "___range-requests___/" : null,
+          }),
+          // Find more about available modules:
+          // https://docs.banuba.com/face-ar-sdk-v1/generated/typedoc/classes/Module.html
+          Module.preload(["face_tracker", "background"].map(m => `https://cdn.jsdelivr.net/npm/@banuba/webar/dist/modules/${m}.zip`)),
+        ])
 
-<div class="fancy">
-<a href="shader.html">
-<img src="images/demo/shader.png" class="superImage" />
-<br/>Shader</a>
-<p class ="superText">A flat plane moves up and down above a Hiro marker; position and tint color are controlled by vertex and fragment shaders.
-</p>
-</div>
+        await player.addModule(...modules)
+        await player.applyEffect(new Effect('./effects/BgVideo.zip'));
 
-<div class="fancy">
-<a href="model.html">
-<img src="images/demo/model.png" class="superImage" />
-<br/>Loading 3D Models</a>
-<p class ="superText">A 3D model (obj and mtl files) are loaded and displayed above a Hiro marker.
-</p>
-</div>
+        //#region fps lock
+        $("select").dropdown({
+          onChange: (fps) => {
+            lock = fps
+            if (source) player.use(source, { fps: lock })
+          }
+        })
+        //#endregion
+        
+        //#region source
+        /*$("#source-image").on("change", e => {
+          source?.stop?.()
+          source = new Image(e.target.files[0])
+          player.use(source, { fps: lock })
+          Dom.render(player, "#webar")
+        })*/
+        /*
+        $("#source-webcam").on("click", e => {
+          source?.stop?.()
+        })*/
+        //#endregion
 
-<div class="fancy">
-<a href="hole-box.html">
-<img src="images/demo/hole-box.png" class="superImage" />
-<br/>Hole in the Floor (Box)</a>
-<p class ="superText">A "hole in the floor" effect. Uses a box geometry to mask the hidden parts of the hole.
-</p>
-</div>
+        source = new Webcam()
+        player.use(source, { fps: lock })
+        Dom.render(player, "#webar")
 
-<div class="fancy">
-<a href="hole-plane.html">
-<img src="images/demo/hole-box.png" class="superImage" />
-<br/>Hole in the Floor (Plane)</a>
-<p class ="superText">Another "hole in the floor" effect, using a plane geometry to mask the hidden parts of the hole.
-</p>
-</div>
+        //#region fps count
+        const fps = {
+          cam: 0,
+          processing: 0,
+          render: 0,
+        }
+        player.addEventListener("framereceived", () => fps.cam++)
+        player.addEventListener("frameprocessed", ({ detail }) => fps.processing = 1. / detail.averagedDuration)
+        player.addEventListener("framerendered", () => fps.render++)
 
-<div class="fancy">
-<a href="hole-ring.html">
-<img src="images/demo/hole-ring.png" class="superImage" />
-<br/>Hole in the Floor (Ring)</a>
-<p class ="superText">A cylindrical "hole in the floor" effect, using a ring geometry to mask the hidden parts of the hole.
-</p>
-</div>
+        setInterval(() => {
+          Object
+                  .entries(fps)
+                  .forEach(([name, value]) => {
+                    fps[name] = 0
+                    $(`#${name}`).text(value.toFixed(1))
+                  })
+        }, 1000)
+        //#endregion
 
-<div class="fancy">
-<a href="basic-scene.html" target="_blank">
-<img src="images/demo/basic-scene.png" class="superImage" />
-<br/>Basic Scene</a>
-<p class ="superText"> A basic scene created with only Three.js (no AR), useful for prototyping ideas before adding in AR components. </p>
-</div>
+        //#region effects
+        /*$.each(effects, async (idx, effectName) => {
+          const btn = $(
+            `<button class="ui primary button elastic loading">
+              ${effectName}
+            </button>`
+          )
+          .prependTo("#effects")
 
-<div class="fancy">
-<a href="water-effect.html" target="_blank">
-<img src="images/demo/water-effect.png" class="superImage" />
-<br/>Water Effect (no AR)</a>
-<p class ="superText"> An animated effect (using shaders) that looks like water flowing 
-out from a central point and being absorbed into the floor. (No AR.)</p>
-</div>
+          const effect = await Effect.preload(`effects/${effectName}.zip`)
 
-<div class="fancy">
-<a href="water-effect-AR.html" target="_blank">
-<img src="images/demo/water-effect-AR.png" class="superImage" />
-<br/>Water Effect (AR version)</a>
-<p class ="superText"> An animated effect (using shaders) that looks like water flowing 
-out from a cylindrical hole (displayed above a Hiro marker), and being absorbed into the floor. 
-<br/>Video preview <a class="toc" href="https://www.youtube.com/watch?v=3DfcD5APnEU">here</a>. </p>
-</div>
+          btn.on("click", () => player.applyEffect(effect))
+          btn.removeClass("loading")
+        })*/
+        $("#reset").on("click", () => player.clearEffect())
+        //#endregion
 
-<div class="fancy">
-<a href="keyboard-mesh-move.html" target="_blank">
-<img src="images/demo/mesh-movement.png" class="superImage" />
-<br/>Keyboard-Based Object Movement</a>
-<p class ="superText"> Move a cube around the screen with the keyboard. Controls (<a href="images/movement-controls.png">image</a>): <br>W/A/S/D -- move Forward/Left/Backward/Right (standard), <br>Q/E -- rotate Left/Right, <br>R/F -- move Up/Down (think: <b>R</b>ise/<b>F</b>all), <br>T/G -- tilt Up/Down (think: look at <b>T</b>ower/<b>G</b>round).</p>
-</div>
 
-<div class="fancy">
-<a href="keyboard-camera-move.html" target="_blank">
-<img src="images/demo/camera-movement.png" class="superImage" />
-<br/>Keyboard-Based Camera Movement</a>
-<p class ="superText"> Move a camera around the screen with the keyboard. <br>Uses same controls as Object Movement example. </p>
-</div>
+        //#region ruler
+        player.addEventListener("effectactivated", ({ detail: effect }) => {
+          const isRuler = effect.scene().getName() === "ruler"
 
-<div class="fancy">
-<a href="portal-half-keyboard-test.html" target="_blank">
-<img src="images/demo/portal-half-keyboard-test.png" class="superImage" />
-<br/>Portal Test</a>
-<p class ="superText"> Creating a "portal to another world" effect. Camera moves using same controls as Object Movement example. Only visible from one side. 
-<br/>Not very robust -- see the following portal examples instead.</p>
-</div>
+          player.removeEventListener("framedata", onFrameData)
+          
+          if (isRuler) player.addEventListener("framedata", onFrameData)
 
-<div class="fancy">
-<a href="stencil-test.html" target="_blank">
-<img src="images/demo/stencil-test.png" class="superImage" />
-<br/>Stencil Buffer Test</a>
-<p class ="superText"> A simple example that uses layers and the stencil buffer to render part of the scene
-onto a plane in the scene. Camera moves using same controls as Object Movement example. Useful for understanding portal view example. </p>
-</div>
+          $("output").text("")
+        })
 
-<div class="fancy">
-<a href="clipping-planes.html" target="_blank">
-<img src="images/demo/clipping-planes.png" class="superImage" />
-<br/>Clipping Planes</a>
-<p class ="superText"> A simple example that sets up a clipping plane (aligned with a plane mesh) to limit the volume of the scene that is rendered. Useful for understanding portal view example. </p>
-</div>
+        function onFrameData({ detail: frameData }) {
+          const face = frameData
+            .getFrxRecognitionResult()
+            ?.getFaces()
+            .get(0)
+            .hasFace()
 
-<div class="fancy">
-<a href="portal-view.html" target="_blank">
-<img src="images/demo/portal-view.png" class="superImage" />
-<br/>Portal View</a>
-<p class ="superText"> A "portal to another world" effect. Portal visible through both sides. 
-<br/>Camera moves using same controls as Object Movement example; also, press 1, 2, or 3 to see the view from different cameras. 
-<br/>Uses stencil buffer and clipping planes for accurate rendering. 
- </p>
-</div>
+          if (!face) return
 
-<div class="fancy">
-<a href="portal-view-AR.html" target="_blank">
-<img src="images/demo/portal-view-AR.png" class="superImage" />
-<br/>Portal View (AR Version)</a>
-<p class ="superText"> An augmented reality version of the "portal to another world" effect. Portal renders above a Kanji marker.
-<br/>Video preview <a class="toc" href="https://www.youtube.com/watch?v=-gZ3Kv9juYg">here</a>. </p>
-</div>
+          const distance = frameData.getRuler()
 
-<div class="fancy">
-<a href="magic-cube.html" target="_blank">
-<img src="images/demo/magic-cube.png" class="superImage" />
-<br/>Magic Cube Effect</a>
-<p class ="superText"> Creates a "magic cube effect" that overlays a cube covered with six AR markers <a class="toc" href="markers/cube.png">in this pattern</a>. 
-<br/>Video preview <a class="toc" href="https://www.youtube.com/watch?v=ZI6oJJFgACM">here</a>. </p>
-</div>
+          $("output").text(`Distance: ${distance.toFixed(2)}`)
+        }
+        //#endreegionBackground.texture('image.png')
 
-<div class="fancy">
-<a href="globe-multi-marker.html" target="_blank">
-<img src="images/demo/globe-multi-marker.png" class="superImage" />
-<br/>Globe with Multiple Markers</a>
-<p class ="superText"> Similar to the Rotating Globe example: places a globe over a Kanji marker. If Kanji marker is blocked, uses other markers (<a class="toc" href="markers/letterA.png">letter A</a> and <a class="toc" href="markers/letterB.png">letter B</a>) to position the globe. </p>
-</div>
+        //#region volume
+        /*let volume = 0 // initial volume state (muted by default)
 
-<div class="fancy">
-<a href="refraction.html" target="_blank">
-<img src="images/demo/refraction.png" class="superImage" />
-<br/>Refraction</a>
-<p class ="superText"> Creates a rotating torus knot above a Kanji marker. The surface of the knot refracts the scene behind it.
-<br/>Video preview <a class="toc" href="https://www.youtube.com/watch?v=8-YnBk1LL-8">here</a>. 
-</p>
-</div>
+        $("#sound > i").toggleClass(volume ? "up" : "mute")
+        $("#sound").on("click", () => player.setVolume(volume = +!volume)) // toggle 0 - 1
 
-<div class="fancy">
-<a href="shadow.html" target="_blank">
-<img src="images/demo/shadow.png" class="superImage" />
-<br/>Shadow</a>
-<p class ="superText"> Creates a rotating torus knot above a Kanji marker. The knot casts a shadow onto the plane containing the marker. </p>
-</div>
+        player.addEventListener("volumechange", () => $("#sound > i").toggleClass("up mute"))
+        //#endregion
+        */
+        //#region image capture
+        const capture = new ImageCapture(player)
 
-<div class="fancy">
-<a href="shadow-balls.html" target="_blank">
-<img src="images/demo/shadow-balls.png" class="superImage" />
-<br/>Shadow Balls</a>
-<p class ="superText"> Creates four colored bouncing basketballs around a Kanji marker. The balls cast shadows onto the plane containing the marker. </p>
-</div>
+        $("#screenshot").on("click", async () => $("body").toast({
+          title: "Screenshot is ready",
+          message: `Check the <a href="${URL.createObjectURL(await capture.takePhoto())}" target="_blank">link</a>`,
+          class: { toast: "ui info message" },
+        }))
+        //#endregion
 
-<div class="fancy">
-<a href="parabolic-path.html" target="_blank">
-<img src="images/demo/parabolic-path.png" class="superImage" />
-<br/>Parabolic Path</a>
-<p class ="superText"> A basketball launches from a <a class="toc" href="markers/letterA.png">Letter-A</a> marker and falls towards a <a class="toc" href="markers/letterB.png">Letter-B</a> marker, following a parabolic path. The ball casts shadows, and a clipping plane (see above example) is used
-to make the ball disappear into the marker. </p>
-</div>
+        //#region video recording
+        let recorder
 
-<!--
-<div class="fancy">
-<a href="screen-hole.html" target="_blank">
-<img src="images/demo/screen-hole.png" class="superImage" />
-<br/>Screen Hole with Multiple Markers</a>
-<p class ="superText"> Simulating a "hole-in-the-wall" effect; uses <a href="markers/kanji-abcd.png">Kanji-ABCD</a> pattern. For simplicity, open <a href="screen-hole-QR.png">this image</a> and scan the QR code with your phone/tablet to be brought directly to the example (idea from Jerome Etienne). </p>
-</div>
--->
+        // lazy recorder initialization cuz it eats fps :(
+        const getRecorder = () => {
+          if (recorder) return recorder
 
-<!--
-<div class="fancy">
-<a href="zzzz.html" target="_blank">
-<img src="images/demo/zzzz.png" class="superImage" />
-<br/>zzzz</a>
-<p class ="superText"> ... </p>
-</div>
--->
+          recorder = new VideoRecorder(player)
 
+          recorder.addEventListener("start", () => $("#rec").show())
+          recorder.addEventListener("pause", () => $("#rec").hide())
+          recorder.addEventListener("resume", () => $("#rec").show())
+          recorder.addEventListener("stop", () => $("#rec").hide())
+
+          return recorder
+        }
+
+        $("#start").on("click", () => getRecorder().start())
+        $("#pause").on("click", () => getRecorder().pause())
+        $("#resume").on("click", () => getRecorder().resume())
+        $("#stop").on("click", async () => $("body").toast({
+          title: "Video record is ready",
+          message: `Check the <a href="${URL.createObjectURL(await getRecorder().stop())}" target="_blank">link</a>`,
+          class: { toast: "ui info message" },
+        }))
+        //#endregion
+      })()
+    </script>
 </body>
+
 </html>
