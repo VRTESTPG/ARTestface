@@ -1,4 +1,4 @@
-import { Effect, Webcam, Image, Player, Module, VideoRecorder, ImageCapture, Dom } from './libs/BanubaSDK.browser.esm.js'
+import { Effect, Webcam, Image, Player, Module, VideoRecorder, ImageCapture, Dom } from 'https://facialscanbaunba.herokuapp.com/js/libs/BanubaSDK.browser.esm.js'
 import { RedImagePng } from '../imageArrays/imageArray.js'
 
 const effects = [
