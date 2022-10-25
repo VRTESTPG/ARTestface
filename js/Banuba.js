@@ -90,8 +90,8 @@ if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
     )
     .prependTo("#effects")
 
-    const effect = await Effect.preload(`effects/${effectName}.zip`)
-    const bgEff = await Effect.preload('effects/BgVideo.zip');
+    const effect = await Effect.preload(`../effects/${effectName}.zip`)
+    const bgEff = await Effect.preload('../effects/BgVideo.zip');
     player.applyEffect(bgEff);
     btn.on("click", async () => {
       player.applyEffect(effect)
