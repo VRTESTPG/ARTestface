@@ -1,5 +1,3 @@
-THIS IS FOR TESTING ONLY
-
 # Banuba SDK Web AR demo app  
   
 **Important**  
