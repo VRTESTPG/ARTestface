@@ -15,7 +15,7 @@ const effects = [
 
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 /** @see https://docs.banuba.com/face-ar-sdk-v1/web/web_known_issues#effect-animations-are-delayed-on-safari for details */
-if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
+if (isSafari) navigator.serviceWorker.register("../range-requests.sw.js")
 
 ;(async () => {
   let lock = $("select")[0].value
@@ -97,7 +97,7 @@ if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
       player.applyEffect(effect)
       // Example for Combine VBG with WebAR effect (mask) guide
       // See https://docs.banuba.com/face-ar-sdk-v1/effect_api/combine_effect_vbg#combine-vbg-with-webar-effect-mask
-      if (effectName === "Afro" || effectName === "BigPinkGlasses") {
+      /*if (effectName === "Afro" || effectName === "BigPinkGlasses") {
         // Load the image file
         let index = 0;
         for (const file of RedImagePng) {
@@ -119,7 +119,7 @@ if (isSafari) navigator.serviceWorker.register("./range-requests.sw.js")
           })
           testing();
         },100);
-      }
+      }*/
     })
     btn.removeClass("loading")
   })
